@@ -1,11 +1,8 @@
 // Author: Bradley Hunter
 
-use std::any::{Any, type_name};
 use std::io;
 use std::num::ParseIntError;
 use std::collections::HashMap;
-use std::ops::Deref;
-
 
 fn main() {
     let mut list_of_lists = ListOfLists::new();
