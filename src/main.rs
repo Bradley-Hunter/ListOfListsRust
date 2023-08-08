@@ -1,8 +1,9 @@
 // Author: Bradley Hunter
 
-use std::io;
+use std::{fs, io};
 use std::num::ParseIntError;
 use std::collections::HashMap;
+use serde_json::Result;
 
 fn main() {
     let mut list_of_lists = ListOfLists::new();
@@ -22,12 +23,51 @@ impl ListOfLists{
     }
 
     pub fn run(&mut self) {
+        let filename = self.get_filename();
+        let contents = self.get_file(&filename);
+        let json = match contents {
+            Ok(content)=> content,
+            Err(err)=> {
+                println!("{}\nUnable to retrieve file contents. Working from empty json.", err);
+                "{}".to_string()
+            },
+        };
+        match self.form_json_object(json) {
+            Ok(ok) => (),
+            Err(e) => self.list_of_lists = HashMap::new()
+        };
+
         let mut done = false;
         while !done {
             self.display_main_menu();
             let option = self.get_int_option();
             done = self.run_main_menu(option);
         }
+
+        match self.serialize_json_object() {
+            Ok(obj) => {
+                match self.save_json_object_to_file(&filename, obj) {
+                    Ok(()) => println!("Saved lists to {}.", filename),
+                    Err(err) => println!("{}", err)
+                }
+            },
+            Err(err) => println!("{}", err)
+        }
+    }
+
+    fn serialize_json_object(&self) ->Result<String> {
+        let serialized_content = serde_json::to_string(&self.list_of_lists)?;
+        Ok(serialized_content)
+    }
+
+    fn save_json_object_to_file(&self, filename: &String, content: String) -> io::Result<()> {
+        fs::write(filename, content)?;
+        Ok(())
+    }
+
+    fn form_json_object(&mut self, file_contents:String) -> Result<()>{
+        self.list_of_lists = serde_json::from_str(&file_contents)?;
+        Ok(())
     }
 
     fn get_int_option(&self) -> i32  {
@@ -42,6 +82,19 @@ impl ListOfLists{
         }
     }
 
+    fn get_filename(&self) -> String {
+        println!("What file would you like to work from?");
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).expect("Failed to read line");
+        let output = input.trim().to_string();
+        output
+    }
+
+    fn get_file(&self, filename: &String) -> io::Result<String> {
+        let contents = fs::read_to_string(filename);
+        return contents;
+    }
+
     fn get_string_option(&self) -> String {
         let mut input = String::new();
         io::stdin().read_line(&mut input).expect("Failed to read line");
@@ -49,7 +102,7 @@ impl ListOfLists{
         output
     }
 
-    fn get_input_num(&self) -> Result<i32, ParseIntError> {
+    fn get_input_num(&self) -> std::result::Result<i32, ParseIntError> {
         let mut input = String::new();
         io::stdin().read_line(&mut input).expect("Failed to read line");
         let output = input.trim().parse::<i32>()?;
@@ -202,7 +255,7 @@ impl ListOfLists{
     }
 
     fn add_item(&mut self, list: &String) {
-        print!("Enter an item to add to {}:", &list);
+        println!("Enter an item to add to {}:", &list);
         let item = self.get_string_option();
         let mut new_list = self.list_of_lists.get(list).expect("Unable to find list").clone();
         new_list.push(item.clone());
